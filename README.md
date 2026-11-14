@@ -27,3 +27,7 @@ På mobil og nettbrett vises berøringsknapper for spiller 1.
 ## Baner
 
 Gymsal, skolegård, garderobe og strand. Banene er animerte. Velg bane i menyen, eller «Tilfeldig» for ny bane hver runde.
+
+## Oppdateringer
+
+Versjonsnummeret står i `VERSION` øverst i skriptet i `index.html` og vises ved siden av tittelen. Når spillet kjører fra en nettadresse (for eksempel GitHub Pages), henter det sin egen fil i bakgrunnen hvert femte minutt. Er versjonen der en annen, dukker knappen «Ny versjon – oppdater» opp øverst, og et trykk laster inn den nye. Husk å øke `VERSION` ved hver endring.
