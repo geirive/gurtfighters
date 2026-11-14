@@ -19,9 +19,9 @@ På mobil og nettbrett vises berøringsknapper for spiller 1.
 
 - Fjerten kommer ut bak. Står motstanderens nese i skyen din, fylles stankmåleren. Full måler betyr gurtet.
 - Et dytt slår pusten ut av motstanderen og vifter skyen framover.
-- Bønner fyller gasstanken, parfyme fjerner stank.
+- Bønner fyller gasstanken, parfyme fjerner 25 stank.
 - Når spesialmåleren er full, fyrer du av en stinkbombe rett fram.
-- Best av tre runder. Vinneren får en avslutning: Gurtrakett eller Dommeren.
+- Best av tre runder. Vinneren får en avslutning: Gurtrakett, Dommeren eller Gurtevulkanen (taperen smekkes inn i en gurtevulkan, gurtes opp på sola, får rumpebrann, kommer ned igjen til enda en gurt, råtner og blir støvsugd opp).
 - I 2 mot 2 er alle fire med i avslutningen. Enten Gurtpasning: vinnerne passer taperne fram og tilbake, skviser dem til en dobbel megagurt så de eksploderer, og støvsuger opp fillebitene. Eller Romskipet: den ene gurter taperne opp i lufta, den andre hopper til månen og stuper ned på dem, de spretter opp og får en ekstra megagurt inn i et romskip som aldri når månen.
 
 ## Baner

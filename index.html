@@ -156,7 +156,7 @@ kbd{font-family:var(--body); font-weight:700; color:var(--fg); background:var(--
 (() => {
 'use strict';
 // Øk VERSION ved hver endring som pushes: spillet sammenligner den med den publiserte fila og varsler om oppdatering.
-const VERSION = '1.3.0';
+const VERSION = '1.4.0';
 const W = 960, H = 540, GROUND = 455, LEFT = 40, RIGHT = 920, ROUND_TIME = 60;
 const COLORS = [
   { name: 'Grønn', c: '#a8e03c', c2: '#d3f58c', d: '#6fa31f', puff: '168,224,60' },
@@ -173,6 +173,7 @@ const CHARS = [
   { name: 'Stank-Stine', hair: 'tails', hc: '#c2452d' },
   { name: 'Bønne-Bjørn', hair: 'lue', hc: '#3b2a20' },
   { name: 'Rap-Ragnhild', hair: 'mohawk' },
+  { name: 'Bamse-Brum', hair: 'bamse', skin: [176, 122, 68] },
 ];
 const REF = { name: 'Dommeren', hair: 'ref' }, REFCOL = { c: '#f1f1ee', c2: '#f1f1ee', d: '#1c1c1c', puff: '255,255,255' };
 const K1 = { l: 'KeyA', r: 'KeyD', j: 'KeyW', hold: 'KeyS', fart: 'KeyF', shove: 'KeyG', sp: 'KeyE' };
@@ -249,7 +250,7 @@ function buildLineup() {
     if (p2) { p2.ctrl = 1; p2.ch = sel[1].ch; }
   }
   const free = shuffle(CHARS.map((c, k) => k).filter(k => !lineup.some(l => l.ch === k)));
-  for (const l of lineup) if (l.ch < 0) l.ch = free.length ? free.pop() : rint(6);
+  for (const l of lineup) if (l.ch < 0) l.ch = free.length ? free.pop() : rint(CHARS.length);
 }
 function newRound() {
   silence();
@@ -458,7 +459,7 @@ function startFinisher() {
   const l = standing.length ? standing.reduce((a, b) => b.stank > a.stank ? b : a) : ls.reduce((a, b) => b.koAt > a.koAt ? b : a);
   let type = 'dommer';
   if (mate) { if (!duoBag.length) duoBag = shuffle(['duo', 'romskip']); type = duoBag.pop(); }
-  else if (!timeUp) { if (!finBag.length) finBag = shuffle(['rakett', 'dommer']); type = finBag.pop(); }
+  else if (!timeUp) { if (!finBag.length) finBag = shuffle(['rakett', 'dommer', 'vulkan']); type = finBag.pop(); }
   silence(); puffs = []; items = []; bombs = [];
   const losers = mate ? ls : [l];
   for (const f of [w, ...(mate ? [mate] : []), ...losers]) {
@@ -470,7 +471,7 @@ function startFinisher() {
   fin = { type, t: 0, w, l, ls: losers, s, wx0: w.x, lx0: l.x, lx: clamp(mid, 260, 700), done: {}, title: '', scene: '', ref: null,
     p: mate, px0: mate ? mate.x : 0, pp: .5, n: 0, kickT: 0, bits: [], flash: 0, cast: [], ship: null, noz: [], float: false,
     cx: 480 + s * 100, shx: 480 - s * 230,
-    dur: { rakett: 6, dommer: 8.4, duo: 99, romskip: 13.4 }[type] };
+    dur: { rakett: 6, dommer: 8.4, vulkan: 99, duo: 99, romskip: 13.4 }[type] };
   if (type === 'dommer') {
     fin.rx0 = s > 0 ? -60 : W + 60;
     fin.ref = makeFighter({ team: 0, idx: 0, ch: REF, ctrl: -1 }, REFCOL);
@@ -488,6 +489,12 @@ function stepFinisher(dt) {
     l.x = lerp(F.lx0, lx, ph(0, .6)); l.facing = s;
     w.x = lerp(F.wx0, wx, ph(0, end));
     if (t < end) { w.facing = wx >= F.wx0 ? 1 : -1; w.walk += dt * 14; } else w.facing = s;
+  };
+  const sweep = (f, tx) => { // gå med støvsugeren mot tx
+    if (tx > f.x + 12) f.facing = 1; else if (tx < f.x - 12) f.facing = -1;
+    const d = clamp(clamp(tx - f.facing * 40, LEFT, RIGHT) - f.x, -230 * dt, 230 * dt);
+    f.x += d; if (Math.abs(d) > .5) f.walk += dt * 14;
+    if ((F.hum = (F.hum || 0) - dt) <= 0) { F.hum = .25; blip(170, .26, 'sawtooth', .035, 12); }
   };
   w.farting = false;
   if (!F.p) for (const f of fighters) if (f.team === w.team && f !== w && !f.ko) f.y = GROUND - Math.abs(Math.sin(clock * 8)) * 18;
@@ -511,6 +518,80 @@ function stepFinisher(dt) {
       const u = ph(2.9, 4.7);
       l.x = lerp(60, 668, u); l.y = lerp(520, 238, u) - Math.sin(u * Math.PI) * 90; l.sc = lerp(1, .5, u); l.rot = u < 1 ? t * 7 : 2.2;
       once('land', 4.7, () => { F.title = 'LANDET PÅ MÅNEN'; shake = .2; blip(60, .3, 'square', .1); });
+    }
+  } else if (F.type === 'vulkan') {
+    // gurt -> smekk -> gurtevulkanen -> sola (rumpebrann) -> ned igjen -> enda en gurt -> råtner -> støvsuging
+    const VX = 480, VY = 196, SY = 352;
+    const vp = (n, sp) => { for (let k = 0; k < n; k++) puffs.push({ x: VX + rnd(-40, 40), y: VY + rnd(-10, 10), vx: rnd(-.35, .35) * sp, vy: -rnd(.4, 1) * sp, r: 16, max: rnd(40, 70), life: rnd(1, 2), team: w.team }); };
+    w.holding = false;
+    if (t < 2.6) {
+      approach(50, .9);
+      if (t >= .9 && t < 2) {
+        once('g', .9, () => { F.title = 'GURT!'; blip(80, 1, 'sawtooth', .1, 120); });
+        w.farting = true; megaPuffs(w, 2); shake = Math.max(shake, .15); l.rot = .95 * ph(.9, 1.3); l.stank = 100; l.x = lx + rnd(-2, 2);
+      } else if (t >= 2) {
+        once('smekk', 2, () => { F.title = 'SMEKK!'; shake = .5; blip(500, .6, 'sawtooth', .09, -440); });
+        const u = t - 2;
+        l.x = lx - s * 1100 * u; l.y = GROUND - 700 * u; l.rot = .95 + u * 14; l.noShadow = true;
+      }
+    } else if (t < 5) {
+      once('v', 2.6, () => { F.scene = 'vulkan'; F.cast = [l]; F.title = ''; puffs = []; floats = []; l.noShadow = true; l.sc = .7; });
+      if (t < 3.4) { const u = ph(2.6, 3.4); l.x = lerp(-40, VX, u); l.y = lerp(150, VY + 40, u) - Math.sin(u * Math.PI) * 130; l.rot = t * 12; }
+      else if (t < 4.3) {
+        once('in', 3.4, () => { F.title = 'GURTEVULKANEN'; l.hidden = true; blip(120, .15, 'square', .09, -50); });
+        once('rumble', 3.6, () => { floats.push({ x: VX, y: 150, text: 'brrrrrrp …', color: '#d3f58c', life: .7 }); blip(60, .7, 'sawtooth', .1, 40); });
+        shake = Math.max(shake, .1 + .25 * ph(3.4, 4.3));
+        if (Math.random() < .5) vp(1, 70);
+      } else {
+        once('out', 4.3, () => { F.title = 'GURTEVULKANEN GURTER!'; shake = .7; F.flash = .4; l.hidden = false; blip(70, .9, 'sawtooth', .14, 500); vp(40, 520); });
+        const u = t - 4.3;
+        vp(2, 420); l.x = VX + Math.sin(t * 30) * 3; l.y = VY + 30 - 300 * u - 1600 * u * u; l.rot = t * 10;
+      }
+    } else if (t < 7.2) {
+      once('sol', 5, () => { F.scene = 'sol'; F.cast = [l]; F.title = ''; puffs = []; floats = []; l.hidden = false; l.noShadow = true; l.sc = .8; l.facing = 1; });
+      if (t < 5.6) { const u = ph(5, 5.6); l.x = 480; l.y = lerp(-80, SY, u * u); l.rot = (1 - u) * 6; }
+      else if (t < 6.5) {
+        once('land', 5.6, () => { F.title = 'LANDET PÅ SOLA'; shake = .3; l.fire = true; blip(1200, .5, 'sawtooth', .06, -900); });
+        once('au', 5.8, () => say(l, 'AU! AU! AU!', '#fff3c4'));
+        const v = t - 5.6;
+        l.rot = 0; l.y = SY - Math.abs(Math.sin(v * 14)) * 34; l.x = 480 + Math.sin(v * 7) * 70; l.facing = Math.cos(v * 7) >= 0 ? 1 : -1; l.walk += dt * 30;
+      } else {
+        once('rb', 6.5, () => { F.title = 'RUMPEBRANN!'; blip(300, .7, 'sawtooth', .1, 900); });
+        const u = t - 6.5;
+        l.y = SY - 200 * u - 1600 * u * u; l.rot = 0;
+      }
+    } else if (t < 10.8) {
+      once('back', 7.2, () => { F.scene = ''; F.title = ''; puffs = []; floats = []; l.sc = 0; l.noShadow = false; l.hidden = false; l.fire = true; l.facing = s; blip(900, .5, 'sawtooth', .08, -800); });
+      w.x = lx + s * 50; w.facing = s;
+      if (t < 7.7) { const u = ph(7.2, 7.7); l.x = lx; l.y = lerp(-120, GROUND, u * u); l.rot = (1 - u) * 5; }
+      else if (t < 8.1) {
+        once('td', 7.7, () => { shake = .3; blip(60, .2, 'square', .1); say(l, 'AU!', '#fff3c4'); });
+        l.rot = 0; l.x = lx; l.y = GROUND - Math.abs(Math.sin((t - 7.7) * 16)) * 22;
+      } else if (t < 9.5) {
+        once('g2', 8.1, () => { F.title = 'ENDA EN GURT!'; blip(80, 1.3, 'sawtooth', .12, 200); });
+        once('pf', 8.5, () => { l.fire = false; floats.push({ x: lx, y: GROUND - 110, text: 'pfff', color: '#f4ecd8', life: .7 }); });
+        w.farting = true; megaPuffs(w, 3); shake = Math.max(shake, .2);
+        l.y = GROUND; l.rot = .95 * ph(8.1, 8.5); l.x = lx + rnd(-2, 2); l.stank = 100;
+      } else {
+        once('rot', 9.5, () => { F.title = 'SÅ STINKY AT HAN RÅTNER!'; l.fire = false; for (const q of puffs) q.life = Math.min(q.life, .5); blip(200, 1.2, 'triangle', .08, -150); });
+        const u = ph(9.5, 10.6);
+        l.x = lx; l.y = GROUND; l.rotten = u; l.rot = lerp(.95, 1.45, u); l.sy = lerp(1, .6, u); w.facing = -s; w.holding = true;
+      }
+    } else {
+      once('pile', 10.8, () => {
+        F.title = 'SPLÆTT!'; shake = .3; blip(140, .25, 'square', .09, -80);
+        const cols = ['#6e7034', '#4f5a22', '#8f9a4a', '#5c4630', '#3b2a20'];
+        for (let k = 0; k < 26; k++) F.bits.push({ x: lx + rnd(-26, 26), y: GROUND - rnd(6, 50), vx: rnd(-430, 430), vy: rnd(-480, -80), rot: rnd(0, 6), vr: rnd(-8, 8), w: rnd(6, 14), h: rnd(4, 9), c: cols[k % cols.length] });
+      });
+      F.scene = ''; l.hidden = true; l.fire = false; w.y = GROUND;
+      if (t > 19) F.bits.length = 0;
+      if (t < 11.7) w.facing = -s;
+      else if (F.bits.length) sweep(w, F.bits.reduce((a, b) => Math.abs(b.x - w.x) < Math.abs(a.x - w.x) ? b : a).x);
+      else {
+        once('clean', 0, () => { F.title = 'RENT OG PENT!'; F.dur = t + 1.8; blip(520, .3, 'square', .06, 260); });
+        w.y = GROUND - Math.abs(Math.sin(clock * 8)) * 18;
+      }
+      if (t >= 11.7) { once('vac', 11.7, () => { F.title = 'STØVSUGING!'; w.vac = true; }); F.noz = [{ x: w.x + w.facing * 46, y: GROUND - 4 }]; }
     }
   } else if (F.type === 'duo') {
     // kryssende pasninger med begge taperne -> skvis -> dobbel megagurt -> PANG -> støvsuging
@@ -577,14 +658,8 @@ function stepFinisher(dt) {
         if (F.bits.length) {
           let lo = F.bits[0].x, hi = lo;
           for (const b of F.bits) { lo = Math.min(lo, b.x); hi = Math.max(hi, b.x); }
-          const sweep = (f, tx) => {
-            if (tx > f.x + 12) f.facing = 1; else if (tx < f.x - 12) f.facing = -1;
-            const d = clamp(clamp(tx - f.facing * 40, LEFT, RIGHT) - f.x, -230 * dt, 230 * dt);
-            f.x += d; if (Math.abs(d) > .5) f.walk += dt * 14;
-          };
           const left = w.x <= p.x ? w : p;
           sweep(left, lo); sweep(left === w ? p : w, hi);
-          if ((F.hum = (F.hum || 0) - dt) <= 0) { F.hum = .25; blip(170, .26, 'sawtooth', .035, 12); }
         } else {
           once('clean', 0, () => { F.title = 'RENT OG PENT!'; F.dur = t + 1.8; blip(520, .3, 'square', .06, 260); });
           w.y = p.y = GROUND - Math.abs(Math.sin(clock * 8)) * 18;
@@ -794,7 +869,7 @@ function step(dt) {
     for (const f of fighters) {
       if (!f.ko && Math.abs(f.x - c.x) < 32 && c.y > f.y - 85) {
         if (c.type === 'bean') { f.gas = Math.min(100, f.gas + 60); say(f, '+ BØNNER', f.col.c2); blip(520, .12, 'square', .05, 400); }
-        else { f.stank = Math.max(0, f.stank - 40); say(f, '+ PARFYME', '#ffb3d0'); blip(900, .25, 'triangle', .06, 700); }
+        else { f.stank = Math.max(0, f.stank - 25); say(f, '+ PARFYME', '#ffb3d0'); blip(900, .25, 'triangle', .06, 700); }
         items.splice(k, 1); break;
       }
     }
@@ -1041,11 +1116,52 @@ const bgSpace = layer(g => {
   g.fillStyle = '#5fbf6a'; g.beginPath(); g.ellipse(108, 458, 20, 12, .4, 0, 7); g.fill();
 });
 
+const bgVulkan = layer(g => {
+  const sky = g.createLinearGradient(0, 0, 0, H);
+  sky.addColorStop(0, '#2a1d3f'); sky.addColorStop(.6, '#8a3f4a'); sky.addColorStop(1, '#f09a4a');
+  g.fillStyle = sky; g.fillRect(0, 0, W, H);
+  g.fillStyle = '#4a2c3c'; g.beginPath(); g.moveTo(0, 540); g.lineTo(0, 400); g.lineTo(120, 330); g.lineTo(230, 420); g.lineTo(330, 540); g.fill();
+  g.beginPath(); g.moveTo(640, 540); g.lineTo(770, 380); g.lineTo(860, 440); g.lineTo(960, 350); g.lineTo(960, 540); g.fill();
+  g.fillStyle = '#3a2a2a'; g.beginPath(); g.moveTo(120, 540); g.lineTo(400, 214); g.lineTo(560, 214); g.lineTo(840, 540); g.fill();
+  g.fillStyle = '#18240f'; g.beginPath(); g.ellipse(480, 212, 62, 16, 0, 0, 7); g.fill();
+  g.fillStyle = '#3a2a2a'; g.beginPath(); g.arc(436, 222, 46, 0, 7); g.arc(524, 222, 46, 0, 7); g.fill(); // krateret har rumpeform
+  g.strokeStyle = '#241818'; g.lineWidth = 5; g.beginPath(); g.moveTo(480, 204); g.lineTo(480, 262); g.stroke();
+  g.strokeStyle = '#a8e03c'; g.lineWidth = 9; g.lineCap = 'round';
+  for (const [x0, x1, y1] of [[468, 430, 360], [492, 548, 330], [480, 486, 420], [450, 340, 470]]) { g.beginPath(); g.moveTo(x0, 250); g.quadraticCurveTo((x0 + x1) / 2 + 12, (250 + y1) / 2, x1, y1); g.stroke(); }
+  g.fillStyle = '#241818'; for (let k = 0; k < 40; k++) g.fillRect(170 + (k * 131) % 620, 300 + (k * 71) % 230, 14, 5);
+});
+const bgSol = layer(g => {
+  g.fillStyle = '#0a0a1c'; g.fillRect(0, 0, W, H);
+  for (let k = 0; k < 120; k++) { g.fillStyle = `rgba(255,255,255,${rnd(.3, 1)})`; g.fillRect(rnd(0, W), rnd(0, 330), rnd(1, 2.6), rnd(1, 2.6)); }
+  g.fillStyle = '#3f8fd0'; g.beginPath(); g.arc(120, 90, 22, 0, 7); g.fill();
+  g.fillStyle = '#5fbf6a'; g.beginPath(); g.ellipse(114, 84, 10, 6, .4, 0, 7); g.fill();
+  const sun = g.createRadialGradient(480, 800, 250, 480, 800, 470);
+  sun.addColorStop(0, '#fff3c4'); sun.addColorStop(.75, '#ffc93c'); sun.addColorStop(1, '#f0742a');
+  g.fillStyle = sun; g.beginPath(); g.arc(480, 800, 450, 0, 7); g.fill();
+  g.fillStyle = 'rgba(240,116,42,.5)';
+  for (const [x, y, r] of [[330, 470, 26], [600, 440, 34], [470, 510, 18], [720, 500, 22]]) { g.beginPath(); g.ellipse(x, y, r, r * .45, 0, 0, 7); g.fill(); }
+});
+const SCENES = { fjell: bgFjell, space: bgSpace, vulkan: bgVulkan, sol: bgSol };
+function animScene(g, scene, t) {
+  if (scene === 'vulkan') {
+    g.fillStyle = `rgba(168,224,60,${.25 + Math.sin(t * 6) * .12})`; g.beginPath(); g.ellipse(480, 196, 70, 26, 0, 0, 7); g.fill();
+  } else if (scene === 'sol') {
+    g.fillStyle = '#ffb03c';
+    for (let k = 0; k < 15; k++) { // flammer langs solkanten
+      const an = -Math.PI / 2 + (k - 7) * .11, h = 26 + Math.sin(t * 9 + k * 1.7) * 14, c = Math.cos(an), n = Math.sin(an);
+      g.beginPath(); g.moveTo(480 + Math.cos(an - .04) * 446, 800 + Math.sin(an - .04) * 446); g.lineTo(480 + c * (450 + h), 800 + n * (450 + h));
+      g.lineTo(480 + Math.cos(an + .04) * 446, 800 + Math.sin(an + .04) * 446); g.fill();
+    }
+  }
+}
+const rgb = h => [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16));
 function mix(a, b, t) { return `rgb(${a.map((v, k) => Math.round(v + (b[k] - v) * t)).join(',')})`; }
 function drawFighter(f, c) {
   c = c || ctx;
   if (f.hidden) return;
-  const col = f.col, body = f.idx ? col.c2 : col.c, hair = f.ch.hair, hc = f.ch.hc, sc = f.sc || 1;
+  const R = f.rotten || 0, rc = h => R && h ? mix(rgb(h), [104, 108, 50], R * .85) : h;
+  const col = R ? { c: rc(f.col.c), c2: rc(f.col.c2), d: rc(f.col.d) } : f.col;
+  const body = f.idx ? col.c2 : col.c, hair = f.ch.hair, hc = rc(f.ch.hc), sc = f.sc || 1;
   if (!f.noShadow) {
     const gy = f.gy || GROUND;
     c.fillStyle = 'rgba(0,0,0,.25)';
@@ -1066,7 +1182,13 @@ function drawFighter(f, c) {
   c.beginPath(); c.moveTo(-6, -22); c.lineTo(-6 + sw, -2); c.moveTo(6, -22); c.lineTo(6 - sw, -2); c.stroke();
   // bum + body
   c.fillStyle = col.d; c.beginPath(); c.arc(-14, -28, 11 + (f.swell || 0) + (f.farting ? Math.random() * 2 : 0), 0, 7); c.fill();
+  if (f.fire) { // rumpebrann
+    c.fillStyle = '#f0742a'; c.beginPath(); c.moveTo(-18, -40); c.lineTo(-40 - rnd(0, 14), -52 - rnd(0, 18)); c.lineTo(-26, -18); c.fill();
+    c.fillStyle = '#ffc93c'; c.beginPath(); c.moveTo(-18, -36); c.lineTo(-32 - rnd(0, 8), -44 - rnd(0, 10)); c.lineTo(-24, -22); c.fill();
+  }
   c.fillStyle = body; c.beginPath(); c.ellipse(0, -38, 18, 22, 0, 0, 7); c.fill();
+  if (hair === 'bamse') { c.fillStyle = 'rgba(255,255,255,.3)'; c.beginPath(); c.ellipse(5, -35, 10, 14, 0, 0, 7); c.fill(); }
+  if (R) { c.fillStyle = `rgba(50,42,18,${R * .6})`; for (const [x, y, r] of [[-6, -46, 4], [7, -29, 5], [1, -52, 3]]) { c.beginPath(); c.arc(x, y, r, 0, 7); c.fill(); } }
   if (hair === 'ref') { c.fillStyle = col.d; c.fillRect(-10, -55, 4, 34); c.fillRect(-2, -59, 4, 42); c.fillRect(6, -55, 4, 34); }
   // arm
   c.strokeStyle = body; c.lineWidth = 8;
@@ -1082,7 +1204,9 @@ function drawFighter(f, c) {
   }
   // head
   const sick = clamp(f.stank / 100, 0, 1);
-  c.fillStyle = f.holding ? '#9db4f2' : mix([242, 201, 160], [150, 190, 80], sick * .85);
+  const skin = (f.ch.skin || [242, 201, 160]).map((v, k) => v + ([150, 190, 80][k] - v) * sick * .85);
+  c.fillStyle = f.holding ? '#9db4f2' : mix(skin, [96, 104, 56], R * .8);
+  if (hair === 'bamse') { c.beginPath(); c.arc(-7, -80, 7, 0, 7); c.arc(15, -81, 7, 0, 7); c.fill(); }
   c.beginPath(); c.arc(4, -68, 15, 0, 7); c.fill();
   if (f.holding) { c.beginPath(); c.arc(12, -61, 8, 0, 7); c.fill(); }
   // hair, hats, beards
@@ -1101,7 +1225,11 @@ function drawFighter(f, c) {
   } else if (hair === 'ref') {
     c.fillStyle = col.d; c.beginPath(); c.arc(4, -70, 15.5, Math.PI, Math.PI * 2); c.closePath(); c.fill(); c.fillRect(6, -73, 20, 4);
   }
-  c.fillStyle = '#e58f86'; c.beginPath(); c.ellipse(20, -66, 7, 5, 0, 0, 7); c.fill();
+  if (hair === 'bamse') {
+    c.fillStyle = 'rgba(0,0,0,.25)'; c.beginPath(); c.arc(-7, -80, 3.5, 0, 7); c.arc(15, -81, 3.5, 0, 7); c.fill();
+    c.fillStyle = '#ecd3a6'; c.beginPath(); c.ellipse(17, -63, 9, 7, 0, 0, 7); c.fill();
+    c.fillStyle = '#3b2a20'; c.beginPath(); c.ellipse(24, -66, 4, 3, 0, 0, 7); c.fill();
+  } else { c.fillStyle = '#e58f86'; c.beginPath(); c.ellipse(20, -66, 7, 5, 0, 0, 7); c.fill(); }
   if (hair === 'bald') {
     c.strokeStyle = hc; c.lineWidth = 4.5; c.beginPath(); c.moveTo(11, -59.5); c.lineTo(23, -58.5); c.stroke();
     c.lineWidth = 3; c.beginPath(); c.moveTo(4, -79); c.lineTo(14, -77); c.stroke();
@@ -1113,6 +1241,7 @@ function drawFighter(f, c) {
   else { c.beginPath(); c.arc(9, -72, 2.6, 0, 7); c.fill(); }
   if (hair === 'tails') { c.lineWidth = 2; c.beginPath(); c.arc(9, -72, 6, 0, 7); c.moveTo(3, -72); c.lineTo(-9, -71); c.stroke(); }
   c.restore();
+  if (R > .3) { c.fillStyle = '#1b2a2e'; for (let k = 0; k < 5; k++) c.fillRect(f.x + Math.cos(clock * (5 + k) + k * 2) * (26 + k * 5), f.y - 34 + Math.sin(clock * (7 + k) + k) * 22, 3, 3); }
   if (c === ctx && f.ctrl >= 0 && !f.ko && !fin) {
     c.font = `700 12px ${BODY}`; c.textAlign = 'center'; c.fillStyle = '#f4ecd8';
     c.fillText('P' + (f.ctrl + 1), f.x, f.y - 100);
@@ -1182,8 +1311,8 @@ function draw() {
   ctx.setTransform(scale, 0, 0, scale, 0, 0);
   if (shake > 0) ctx.translate(rnd(-5, 5) * shake * 3, rnd(-4, 4) * shake * 3);
   const scene = fin ? fin.scene : '';
-  ctx.drawImage(scene === 'fjell' ? bgFjell : scene === 'space' ? bgSpace : ARENAS[arena].bg, 0, 0);
-  if (!scene) ARENAS[arena].anim(ctx, clock);
+  ctx.drawImage(scene ? SCENES[scene] : ARENAS[arena].bg, 0, 0);
+  if (scene) animScene(ctx, scene, clock); else ARENAS[arena].anim(ctx, clock);
   if (!demo && !fin) hud();
   for (const c of items) {
     if (c.type === 'bean') {
