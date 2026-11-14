@@ -21,9 +21,9 @@ På mobil og nettbrett vises berøringsknapper for spiller 1.
 - Et dytt slår pusten ut av motstanderen og vifter skyen framover.
 - Bønner fyller gasstanken, parfyme fjerner stank.
 - Når spesialmåleren er full, fyrer du av en stinkbombe rett fram.
-- Best av tre runder. Vinneren får en avslutning: Megagurt, Gurtrakett, Gurtnado eller Dommeren.
-- I 2 mot 2 feirer begge vinnerne sammen: de gurtpasser taperen fram og tilbake, skviser ham til en dobbel megagurt så han eksploderer, og støvsuger opp fillebitene.
+- Best av tre runder. Vinneren får en avslutning: Gurtrakett eller Dommeren.
+- I 2 mot 2 er alle fire med i avslutningen. Enten Gurtpasning: vinnerne passer taperne fram og tilbake, skviser dem til en dobbel megagurt så de eksploderer, og støvsuger opp fillebitene. Eller Romskipet: den ene gurter taperne opp i lufta, den andre hopper til månen og stuper ned på dem, de spretter opp og får en ekstra megagurt inn i et romskip som aldri når månen.
 
 ## Baner
 
-Gymsal, skolegård, garderobe og strand. Velg bane i menyen, eller «Tilfeldig» for ny bane hver runde.
+Gymsal, skolegård, garderobe og strand. Banene er animerte. Velg bane i menyen, eller «Tilfeldig» for ny bane hver runde.
