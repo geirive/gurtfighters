@@ -1,6 +1,6 @@
 # Gurtfighters
 
-Et slåssespill i gymsalen der du vinner ved å få motstanderen til å lukte på fjerten din. 1 mot 1 eller 2 mot 2, mot CPU eller to spillere på samme tastatur.
+Et slåssespill der du vinner ved å få motstanderen til å lukte på fjerten din. 1 mot 1 eller 2 mot 2, mot CPU eller to spillere på samme tastatur.
 
 ## Spill
 
@@ -22,3 +22,8 @@ På mobil og nettbrett vises berøringsknapper for spiller 1.
 - Bønner fyller gasstanken, parfyme fjerner stank.
 - Når spesialmåleren er full, fyrer du av en stinkbombe rett fram.
 - Best av tre runder. Vinneren får en avslutning: Megagurt, Gurtrakett, Gurtnado eller Dommeren.
+- I 2 mot 2 feirer begge vinnerne sammen: de gurtpasser taperen fram og tilbake, skviser ham til en dobbel megagurt så han eksploderer, og støvsuger opp fillebitene.
+
+## Baner
+
+Gymsal, skolegård, garderobe og strand. Velg bane i menyen, eller «Tilfeldig» for ny bane hver runde.
