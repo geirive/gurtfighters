@@ -67,6 +67,21 @@ kbd{font-family:var(--body); font-weight:700; color:var(--fg); background:var(--
   .menu{position:absolute; inset:0; margin:0; align-items:center; background:rgba(8,22,26,.72); border-radius:10px; overflow:auto}
 }
 
+.link{background:none; border:0; padding:0; color:var(--dim); text-decoration:underline; font-size:13px}
+dialog{background:var(--panel); color:var(--fg); border:1px solid var(--line); border-radius:14px; padding:20px; width:min(92vw,460px)}
+dialog::backdrop{background:rgba(8,22,26,.75)}
+dialog form{display:flex; flex-direction:column; gap:12px}
+dialog h2{font-family:var(--display); font-weight:400; font-size:24px; margin:0; color:var(--accent)}
+dialog p{margin:0; color:var(--dim); font-size:13px}
+dialog textarea, dialog input{font:inherit; color:var(--fg); background:var(--bg); border:1px solid var(--line); border-radius:8px; padding:9px 10px; width:100%; box-sizing:border-box}
+dialog textarea{min-height:120px; resize:vertical}
+dialog textarea:focus-visible, dialog input:focus-visible{outline:3px solid var(--accent); outline-offset:1px}
+dialog .btns{display:flex; gap:8px; justify-content:flex-end}
+dialog .btns button{border:1px solid var(--line); background:transparent; border-radius:8px; padding:8px 14px; font-weight:700}
+dialog .btns .send{background:var(--accent); color:var(--accent-ink); border-color:var(--accent)}
+dialog .btns button:disabled{opacity:.5; cursor:default}
+dialog .hp{position:absolute; left:-9999px; width:1px; height:1px}
+#fbMsg{min-height:1.4em; color:var(--fg)}
 .pad{display:none; width:100%; justify-content:space-between; gap:10px; user-select:none; -webkit-user-select:none}
 .pad div{display:grid; gap:8px}
 .pad .mv{grid-template-columns:repeat(2,58px)}
@@ -117,6 +132,7 @@ kbd{font-family:var(--body); font-weight:700; color:var(--fg); background:var(--
         </div>
         <button class="start" id="start">START KAMPEN</button>
         <p>Fjerten kommer ut bak, så snu rumpa mot motstanderen. Et dytt slår pusten ut av dem. Bønner fyller gasstanken, parfyme fjerner stank. Når spesialmåleren er full, fyrer du av en stinkbombe rett fram.</p>
+        <p><button class="link" id="fbOpen" type="button">Gi tilbakemelding</button></p>
       </div>
       <div class="col">
         <div class="row" id="pick0">
@@ -138,6 +154,32 @@ kbd{font-family:var(--body); font-weight:700; color:var(--fg); background:var(--
   </div>
 </div>
 
+<dialog id="fb" aria-labelledby="fbTitle">
+  <form id="fbForm">
+    <h2 id="fbTitle">Si hva du synes</h2>
+    <div class="row">
+      <span class="label">Hva gjelder det?</span>
+      <div class="seg" id="fbType">
+        <button type="button" data-v="bug" aria-pressed="false">Feil</button>
+        <button type="button" data-v="idea" aria-pressed="true">Idé</button>
+        <button type="button" data-v="praise" aria-pressed="false">Ros</button>
+        <button type="button" data-v="other" aria-pressed="false">Annet</button>
+      </div>
+    </div>
+    <label class="row"><span class="label">Melding</span>
+      <textarea id="fbText" maxlength="1000" required placeholder="Skriv her …"></textarea></label>
+    <label class="row" id="fbCodeRow"><span class="label">Kodeord</span>
+      <input id="fbCode" type="text" maxlength="60" autocomplete="off" autocapitalize="off" spellcheck="false"></label>
+    <input class="hp" id="fbHp" type="text" name="website" tabindex="-1" autocomplete="off" aria-hidden="true">
+    <p id="fbNote"></p>
+    <p id="fbMsg" role="status"></p>
+    <div class="btns">
+      <button type="button" id="fbCancel">Lukk</button>
+      <button type="submit" class="send" id="fbSend">Send</button>
+    </div>
+  </form>
+</dialog>
+
 <div class="pad" id="pad" hidden>
   <div class="mv">
     <button data-k="l" aria-label="Gå til venstre">◀</button>
@@ -156,7 +198,10 @@ kbd{font-family:var(--body); font-weight:700; color:var(--fg); background:var(--
 (() => {
 'use strict';
 // Øk VERSION ved hver endring som pushes: spillet sammenligner den med den publiserte fila og varsler om oppdatering.
-const VERSION = '1.4.0';
+const VERSION = '1.5.0';
+// Tilbakemeldinger: adressen til Workeren i feedback-worker/. Tom = åpne et ferdig utfylt issue-skjema på GitHub i stedet.
+const FEEDBACK_URL = '';
+const REPO = 'geirive/gurtfighters';
 const W = 960, H = 540, GROUND = 455, LEFT = 40, RIGHT = 920, ROUND_TIME = 60;
 const COLORS = [
   { name: 'Grønn', c: '#a8e03c', c2: '#d3f58c', d: '#6fa31f', puff: '168,224,60' },
@@ -1382,6 +1427,7 @@ function frame(t) {
 }
 
 addEventListener('keydown', e => {
+  if (e.target.closest && e.target.closest('dialog')) return; // typing feedback must not steer the game
   if (e.code === 'Enter') {
     if (state === 'finisher') { fin.t = Math.max(fin.t, fin.dur); e.preventDefault(); return; }
     if (state === 'matchEnd' || (demo && !e.target.closest('button'))) { startMatch(); e.preventDefault(); return; }
@@ -1478,6 +1524,48 @@ async function checkUpdate() {
 $('update').addEventListener('click', () => location.replace(location.pathname + '?v=' + encodeURIComponent(newVer)));
 setTimeout(checkUpdate, 20000); setInterval(checkUpdate, 5 * 60000);
 document.addEventListener('visibilitychange', checkUpdate);
+
+// feedback: free text + a type, sent to the Worker (or to a prefilled GitHub issue form when no Worker is configured)
+const store = { get: k => { try { return localStorage.getItem(k) || ''; } catch (e) { return ''; } }, set: (k, v) => { try { localStorage.setItem(k, v); } catch (e) {} } };
+const FB_TYPES = { bug: 'Feil', idea: 'Idé', praise: 'Ros', other: 'Annet' };
+const FB_ERR = { code: 'Feil kodeord.', rate: 'For mange meldinger akkurat nå. Prøv igjen om litt.', empty: 'Skriv litt mer først.', too_long: 'Meldingen er for lang.' };
+let fbType = 'idea', fbBusy = false;
+function fbContext() {
+  return [cfg.mode, cfg.players === '1' ? '1 spiller' : cfg.players === 'vs' ? '2 spillere mot hverandre' : '2 spillere på lag', 'bane ' + ARENAS[arena].name,
+    innerWidth + 'x' + innerHeight, navigator.maxTouchPoints > 0 ? 'berøring' : 'tastatur'].join(', ');
+}
+$('fbOpen').addEventListener('click', () => {
+  for (const k in keys) keys[k] = false;
+  $('fbCodeRow').hidden = !FEEDBACK_URL; $('fbCode').value = store.get('gurt-fb-code');
+  $('fbNote').textContent = FEEDBACK_URL ? 'Versjon og spillvalg sendes med. Ikke skriv navn eller annet personlig.' : 'Åpner GitHub i en ny fane med meldingen ferdig utfylt. Du trenger en GitHub-konto.';
+  $('fbSend').textContent = FEEDBACK_URL ? 'Send' : 'Åpne GitHub';
+  $('fbMsg').textContent = ''; $('fb').showModal(); $('fbText').focus();
+});
+$('fbCancel').addEventListener('click', () => $('fb').close());
+$('fbType').addEventListener('click', e => {
+  const b = e.target.closest('button'); if (!b) return;
+  fbType = b.dataset.v; for (const x of $('fbType').children) x.setAttribute('aria-pressed', x === b);
+});
+$('fbForm').addEventListener('submit', async e => {
+  e.preventDefault();
+  const text = $('fbText').value.trim(), msg = $('fbMsg');
+  if (fbBusy) return;
+  if (text.length < 3) { msg.textContent = FB_ERR.empty; return; }
+  if (!FEEDBACK_URL) {
+    const body = `- **Type:** ${FB_TYPES[fbType]}\n- **Versjon:** ${VERSION}\n- **Kontekst:** ${fbContext()}\n\n~~~text\n${text.replace(/~{3,}/g, '~~')}\n~~~`;
+    window.open(`https://github.com/${REPO}/issues/new?labels=feedback&title=${encodeURIComponent('[' + FB_TYPES[fbType] + '] ' + text.replace(/\s+/g, ' ').slice(0, 60))}&body=${encodeURIComponent(body)}`, '_blank', 'noopener');
+    $('fb').close(); return;
+  }
+  fbBusy = true; $('fbSend').disabled = true; msg.textContent = 'Sender …';
+  try {
+    const r = await fetch(FEEDBACK_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ type: fbType, text, code: $('fbCode').value, website: $('fbHp').value, version: VERSION, context: fbContext() }) });
+    const d = await r.json().catch(() => ({}));
+    if (r.ok && d.ok) { store.set('gurt-fb-code', $('fbCode').value.trim()); $('fbText').value = ''; msg.textContent = 'Takk! Meldingen er sendt.'; setTimeout(() => { if (msg.textContent.startsWith('Takk')) $('fb').close(); }, 1600); }
+    else msg.textContent = FB_ERR[d.error] || 'Noe gikk galt. Prøv igjen senere.';
+  } catch (err) { msg.textContent = 'Fikk ikke kontakt. Sjekk nettet og prøv igjen.'; }
+  fbBusy = false; $('fbSend').disabled = false;
+});
 
 if (navigator.maxTouchPoints > 0) $('pad').classList.add('touch');
 syncMenu(); buildLineup(); newRound(); state = 'play'; fit();
